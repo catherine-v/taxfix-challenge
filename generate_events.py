@@ -5,52 +5,70 @@ import random
 from time import sleep
 from uuid import uuid4
 
+from pytz import timezone
+
 DEFAULT_SETTINGS = {
-    "events_per_sec": 10,
-    "foo": "bar"
+    "events_per_sec": 10
 }
 EVENT_TYPES = ["submission_success", "registration_initiated", "another_event"]
 EVENT_TYPE_TEXT = {
     "submission_success": "submissionSuccess",
     "registration_initiated": "registrationInitiated",
-    "another_event": "anotherEvent"
+    "another_event": "anotherEvent",
 }
 PLATFORMS = ["android", "ios"]
+OS_NAME = {
+    "android": "Android",
+    "ios": "iOS",
+}
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+BERLIN_TZ = timezone("Europe/Berlin")
 
 
 def load_settings() -> dict:
+    """
+    Loads settings from file
+
+    :return: dictionary with settings key-value pairs
+    """
     config = ConfigParser()
     config.read("settings.ini")
-    if "events" not in config:
-        return DEFAULT_SETTINGS
-
-    section = config["events"]
     return {
-        key: section.get(key, DEFAULT_SETTINGS[key])
-        for key in DEFAULT_SETTINGS.keys()
+        "events_per_sec": config.getint("events", "events_per_sec", fallback=DEFAULT_SETTINGS["events_per_sec"]),
     }
 
 
 def generate_sample_event() -> dict:
-    now = datetime.datetime.utcnow()
+    """
+    Generates a semi-random event
+
+    :return: a single event dictionary
+    """
+    # Assumed order of timestamps: original -> timestamp -> sent -> received
+    # Generation is moving from the latest (received) backwards in time with random shifts
+    received_at = datetime.datetime.utcnow()
+    sent_at = received_at - datetime.timedelta(microseconds=random.randint(100, 2000))
+    ts = sent_at - datetime.timedelta(microseconds=random.randint(100, 1000))
+    original_ts = ts - datetime.timedelta(microseconds=random.randint(0, 100))
+    # Select random event type and platform
     event_type = random.choice(EVENT_TYPES)
     platform = random.choice(PLATFORMS)
+    # Rest of the fields are not important for the task context, so left hardcoded
     event = {
         "id": str(uuid4()).upper(),
-        "received_at": now.strftime("%Y-%m-%d %H:%M:%S.%f"),
+        "received_at": received_at.strftime(DATETIME_FORMAT),
         "anonymous_id": str(uuid4()).upper(),
         "context_device_manufacturer": "Apple",
         "context_device_model": "iPhone8,4",
         "context_device_type": platform,
         "context_locale": "de-DE",
         "context_network_wifi": random.choice([False, True]),
-        "context_os_name": "android",
+        "context_os_name": OS_NAME[platform],
         "event": event_type,
         "event_text": EVENT_TYPE_TEXT[event_type],
-        # TODO: base on `now` value
-        "original_timestamp": "2018-01-30T19:13:43.383+0100",
-        "sent_at": "2018-01-30 18:13:51.000000",
-        "timestamp": "2018-01-30 18:13:43.627000",
+        "original_timestamp": original_ts.astimezone(BERLIN_TZ).strftime(f"{DATETIME_FORMAT}%z"),
+        "sent_at": sent_at.strftime(DATETIME_FORMAT),
+        "timestamp": ts.strftime(DATETIME_FORMAT),
         "context_network_carrier": "o2-de",
         "context_traits_taxfix_language": "en-DE",
     }
@@ -74,7 +92,12 @@ def generate_sample_event() -> dict:
 
 if __name__ == "__main__":
     settings = load_settings()
+    # Settings contains an approximate amount of events per second we want to have
+    # which gives an average interval between messages of 1s / events_per_sec
+    # In order to have an average interval appearing more often we will use
+    # [0, 2 * avg_interval) as random boundaries
+    interval = 2 * 1.0 / settings["events_per_sec"]
     while True:
+        # TODO: send a message to the queue
         print(json.dumps(generate_sample_event(), indent=4))
-        # TODO: add randomization in the delay based on settings
-        sleep(1)
+        sleep(random.random() * interval)
