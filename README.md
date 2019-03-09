@@ -19,8 +19,12 @@ Amazon SQS is being used here as an events bus. The generation script assumes th
 
 ## Events consumption
  
-Script which consumes messages and stores them on a DFS `XXX` can be running either non-stop on a hosted machine (self-hosted, EC2, ElasticBeanstalk, Google AppEngine etc.)
-or be a serverless solution like Lambda. A decision depends mainly on an expected load. 
+Script which consumes messages and stores them on a DFS `consume_events.py` can be running 
+* non-stop on a hosted machine (self-hosted, EC2, ElasticBeanstalk, Google AppEngine etc.) -- in this case 
+  [long polling](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html) is possible
+* be a serverless solution like Lambda 
+
+A decision depends mainly on an expected load. In this implementation I am using a self-hosted script with long polling. 
 
 
 ## Tasks scheduling
