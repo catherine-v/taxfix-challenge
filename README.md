@@ -7,12 +7,14 @@ Although Google BigQuery seems to be more popular as a big data storage, I was c
 
 Other technologies from AWS I am using in this prototype can easily be replaced by similar tools from different brands with a certain ease.
 
-Configuration of connections to AWS resources is placed in `settings.ini` 
+Configuration of connections to AWS resources is placed in `settings.ini`. 
+In order to connect to AWS resources I am using `boto3` library which is getting access key and secret from `$HOME/.aws/` folder.
 
 
 ## Events simulation
 
 To simulate events flow I am using `generate_events.py` script which has simple settings (from `settings.ini`) to affect frequency of events generation.
+Amazon SQS is being used here as an events bus. The generation script assumes the queue already exists.
    
 
 ## Events consumption
