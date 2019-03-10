@@ -36,7 +36,7 @@ def load_settings() -> dict:
     config = ConfigParser()
     config.read("settings.ini")
     return {
-        "events_per_sec": config.getint("events", "events_per_sec", fallback=DEFAULT_SETTINGS["events_per_sec"]),
+        "events_per_sec": config.getfloat("events", "events_per_sec", fallback=DEFAULT_SETTINGS["events_per_sec"]),
         "sqs_name": config.get("aws", "sqs_name", fallback=DEFAULT_SETTINGS["sqs_name"]),
     }
 
