@@ -10,18 +10,6 @@ import boto3
 
 logging.basicConfig(level=logging.INFO)
 
-DEFAULT_SETTINGS = {
-    "sqs_name": "SomeSQS",
-    "sqs_polling_timeout": 20,
-    "s3_bucket": "some-bucket",
-    "polling_cycles": 5,
-}
-
-CLIENTS = {
-    "s3": boto3.client("s3"),
-    "sqs": boto3.resource("sqs"),
-}
-
 
 def load_settings() -> dict:
     """
@@ -32,19 +20,22 @@ def load_settings() -> dict:
     config = ConfigParser()
     config.read("settings.ini")
     return {
-        "sqs_name": config.get("aws", "sqs_name", fallback=DEFAULT_SETTINGS["sqs_name"]),
-        "sqs_polling_timeout": config.getint("aws", "sqs_polling_timeout",
-                                             fallback=DEFAULT_SETTINGS["sqs_polling_timeout"]),
-        "s3_bucket": config.get("aws", "s3_bucket", fallback=DEFAULT_SETTINGS["s3_bucket"]),
-        "polling_cycles": config.getint("events", "polling_cycles", fallback=DEFAULT_SETTINGS["polling_cycles"]),
+        "aws_access_key_id": config.get("aws", "aws_access_key_id"),
+        "aws_secret_access_key": config.get("aws", "aws_secret_access_key"),
+        "region": config.get("aws", "region"),
+        "sqs_name": config.get("aws", "sqs_name"),
+        "sqs_polling_timeout": config.getint("aws", "sqs_polling_timeout"),
+        "s3_bucket": config.get("aws", "s3_bucket"),
+        "polling_cycles": config.getint("events", "polling_cycles"),
     }
 
 
-def save_to_dfs(events: list, bucket_name: str):
+def save_to_dfs(events: list, bucket_name: str, client):
     """
     Saves a list of events to S3 bucket
     :param events: list of raw events
     :param bucket_name: name of S3 bucket
+    :param client: boto3 S3 client
     :return: None
     """
     if not events:
@@ -53,7 +44,7 @@ def save_to_dfs(events: list, bucket_name: str):
     s = BytesIO(bytes(json.dumps(events), 'utf-8'))
     now = datetime.utcnow().strftime("%Y%m%d/%H%M%S")
     filename = f"{now}-{uuid4()}.json"
-    CLIENTS["s3"].upload_fileobj(s, bucket_name, filename)
+    client.upload_fileobj(s, bucket_name, filename)
     s.close()
     logging.info("Uploaded %s events to %s", len(events), filename)
 
@@ -65,7 +56,15 @@ def fetch_events(settings: dict):
     :param settings: settings dictionary
     :return: None
     """
-    queue = CLIENTS["sqs"].get_queue_by_name(QueueName=settings["sqs_name"])
+    params = {
+        "region_name": settings["region"],
+        "aws_access_key_id": settings["aws_access_key_id"],
+        "aws_secret_access_key": settings["aws_secret_access_key"]
+    }
+    s3_client = boto3.client("s3", **params)
+    sqs_client = boto3.resource("sqs", **params)
+
+    queue = sqs_client.get_queue_by_name(QueueName=settings["sqs_name"])
     events = []
     cnt = 0
 
@@ -89,7 +88,7 @@ def fetch_events(settings: dict):
 
         # Save to DFS every `polling_cycles` time
         if cnt >= settings["polling_cycles"]:
-            save_to_dfs(events, settings["s3_bucket"])
+            save_to_dfs(events, settings["s3_bucket"], s3_client)
             events = []
             cnt = 0
 

@@ -9,7 +9,7 @@ Other technologies from AWS I am using in this prototype can easily be replaced 
 
 Configuration of connections to AWS resources is placed in `settings.ini`. 
 In order to connect to AWS resources I am using `boto3` library which is getting access key and secret from `$HOME/.aws/` folder or 
-from environment variables.
+from environment variables. But for settings consistency scripts are getting credentials from the same settings file.
 
 
 ## Events simulation
@@ -50,19 +50,38 @@ fulfill the task needs or a logical assumption. `VARCHAR` length are also an ass
 To keep scheduling flexible the script `upload_data.py` is fetching all available files from S3, uploads them to Redshift
 and removes from S3 so the next job will not upload the same data causing unnecessary duplication. In a real project
 it might be beneficial not to remove data from S3, but keep uploaded files in a separate bucket.
+
+The script is scheduled to run every 5 minutes.
  
 
 ## Visualization
 
-Data visualization highly depends on requirements and tools&processes which are already in use by the company. 
+Data visualization highly depends on requirements and tools & processes which are already in use by the company. 
 Tools like [Tableau](https://www.tableau.com/) are often become a choice of bigger companies, other tools like [D3](https://d3js.org/) allow in-house development of interactive graphics.
 
 Since no specific information was given in the challenge for this part, I've decided to provide a simple visualization via matplotlib. 
-Each time `visualize.py` script runs it saves resulting graphs as files in the same directory for further reference.
+Each time `visualize.py` script runs it saves resulting graphs as files in the same directory for further reference. 
+It is scheduled to run evenry 2 hours.
 
+
+## How to run scripts on local
+
+It is possible to run all scripts locally for testing purposes using Docker. I am using a single Docker container which
+runs several processes, but this approach is not recommended and is definitely not a production solution.
+
+1. Edit `settings.ini` file to setup real credentials and other settings  
+2. Build docker container with `docker build --rm -t taxfix/challenge .`
+3. Run `docker run -t -i taxfix/challenge`
+  
+All scripts' output will be printed to the console.
+
+Please note: all AWS resources like S3 bucket, SQS queue, Redshift cluster should be created manually beforehand. 
 
 ## Potential improvements / next steps
 
 * add unit tests
-* organise better files handling for raw events (as described above)
-* choose a better option for visualization or at least move graph images to a DFS 
+* improve error handling
+* move malformed events to a dead-letter queue to analyze
+* better organisation of files handling for raw events (described above)
+* choose a better option for visualization or at least move graph images to a DFS
+* improve logs collection for periodical tasks

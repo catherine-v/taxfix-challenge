@@ -1,6 +1,7 @@
 from configparser import ConfigParser
 import datetime
 import json
+import logging
 import random
 from time import sleep
 from uuid import uuid4
@@ -8,10 +9,9 @@ from uuid import uuid4
 import boto3
 from pytz import timezone
 
-DEFAULT_SETTINGS = {
-    "events_per_sec": 10,
-    "sqs_name": "SomeSQS",
-}
+
+logging.basicConfig(level=logging.INFO)
+
 EVENT_TYPES = ["submission_success", "registration_initiated", "another_event"]
 EVENT_TYPE_TEXT = {
     "submission_success": "submissionSuccess",
@@ -36,8 +36,11 @@ def load_settings() -> dict:
     config = ConfigParser()
     config.read("settings.ini")
     return {
-        "events_per_sec": config.getfloat("events", "events_per_sec", fallback=DEFAULT_SETTINGS["events_per_sec"]),
-        "sqs_name": config.get("aws", "sqs_name", fallback=DEFAULT_SETTINGS["sqs_name"]),
+        "aws_access_key_id": config.get("aws", "aws_access_key_id"),
+        "aws_secret_access_key": config.get("aws", "aws_secret_access_key"),
+        "region": config.get("aws", "region"),
+        "events_per_sec": config.getfloat("events", "events_per_sec"),
+        "sqs_name": config.get("aws", "sqs_name"),
     }
 
 
@@ -103,7 +106,10 @@ if __name__ == "__main__":
     interval = 2 * 1.0 / settings["events_per_sec"]
 
     # Connect to SQS
-    sqs = boto3.resource('sqs')
+    sqs = boto3.resource('sqs',
+                         region_name=settings["region"],
+                         aws_access_key_id=settings["aws_access_key_id"],
+                         aws_secret_access_key=settings["aws_secret_access_key"])
     queue = sqs.get_queue_by_name(QueueName=settings["sqs_name"])
 
     # Start an endless loop of message sending
@@ -111,7 +117,7 @@ if __name__ == "__main__":
         # Send an event to the queue
         event = generate_sample_event()
         response = queue.send_message(MessageBody=json.dumps(event))
-        print(response.get('MessageId'))
+        logging.info(response.get('MessageId'))
 
         # Sleep until the next event
         sleep(random.random() * interval)
