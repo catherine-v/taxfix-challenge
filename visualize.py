@@ -1,7 +1,8 @@
 from configparser import ConfigParser
+from datetime import datetime
 import logging
 
-import boto3
+import pandas as pd
 import psycopg2
 
 
@@ -14,8 +15,7 @@ DEFAULT_SETTINGS = {
     "host": "redshift.host",
     "port": "5439",
     "database": "events",
-    "arn_credentials": "arn:aws:iam::0123456789012:role/MyRedshiftRole",
-    "s3_bucket": "some-bucket",
+    "report_events": "submission_success,registration_initiated"
 }
 
 
@@ -28,38 +28,38 @@ def load_settings() -> dict:
     config = ConfigParser()
     config.read("settings.ini")
     return {
-        "s3_bucket": config.get("aws", "s3_bucket", fallback=DEFAULT_SETTINGS["s3_bucket"]),
         "user": config.get("redshift", "user", fallback=DEFAULT_SETTINGS["user"]),
         "password": config.get("redshift", "password", fallback=DEFAULT_SETTINGS["password"]),
         "host": config.get("redshift", "host", fallback=DEFAULT_SETTINGS["host"]),
         "port": config.get("redshift", "port", fallback=DEFAULT_SETTINGS["port"]),
         "database": config.get("redshift", "database", fallback=DEFAULT_SETTINGS["database"]),
-        "arn_credentials": config.get("redshift", "arn_credentials", fallback=DEFAULT_SETTINGS["arn_credentials"]),
+        "report_events": config.get("events", "report_events", fallback=DEFAULT_SETTINGS["report_events"]),
     }
 
 
 if __name__ == "__main__":
     settings = load_settings()
-
-    # Get list of files available for the u pload
-    s3 = boto3.client("s3")
-    res = s3.list_objects(Bucket=settings["s3_bucket"])
-    files = [f["Key"] for f in res["Contents"]]
+    dt = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
 
     # Connect to Redshift
     with psycopg2.connect(REDSHIFT_DSN_STR.format(**settings)) as conn:
         with conn.cursor() as cursor:
-            for file in files:
+            for event in settings["report_events"].split(","):
                 cursor.execute("""
-                    COPY events
-                    FROM 's3://{bucket}/{key}'
-                    IAM_ROLE '{arn}'
-                    JSON 'auto'
-                    TIMEFORMAT 'auto';
-                """.format(bucket=settings["s3_bucket"],
-                           key=file,
-                           arn=settings["arn_credentials"]))
+                    SELECT TO_CHAR(DATE_TRUNC('day', timestamp), 'YYYY-MM-DD') as date,
+                           context_device_type,
+                           COUNT(*) as cnt
+                    FROM events
+                    WHERE event = %s
+                    GROUP BY DATE_TRUNC('day', timestamp), context_device_type
+                """, (event, ))
 
-                # Remove file after an upload
-                s3.delete_object(Bucket=settings["s3_bucket"], Key=file)
-                logging.info("Uploaded %s contents to Redshift", file)
+                # Transform data for plotting
+                results = pd.DataFrame(cursor.fetchall(), columns=["date", "platform", "count"])
+                results.set_index("date", inplace=True)
+                results.sort_index(inplace=True)
+                data = results.pivot(columns="platform", values="count")
+
+                # Create a graph and save it
+                graph = data.plot.bar()
+                graph.get_figure().savefig(f"{event}-{dt}.png")

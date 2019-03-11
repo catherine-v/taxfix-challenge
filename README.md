@@ -52,9 +52,17 @@ and removes from S3 so the next job will not upload the same data causing unnece
 it might be beneficial not to remove data from S3, but keep uploaded files in a separate bucket.
  
 
-
 ## Visualization
 
 Data visualization highly depends on requirements and tools&processes which are already in use by the company. 
 Tools like [Tableau](https://www.tableau.com/) are often become a choice of bigger companies, other tools like [D3](https://d3js.org/) allow in-house development of interactive graphics.
-Since no specific information was given in the challenge for this part, I've decided to provide a simple visualization via matplotlib.
+
+Since no specific information was given in the challenge for this part, I've decided to provide a simple visualization via matplotlib. 
+Each time `visualize.py` script runs it saves resulting graphs as files in the same directory for further reference.
+
+
+## Potential improvements / next steps
+
+* add unit tests
+* organise better files handling for raw events (as described above)
+* choose a better option for visualization or at least move graph images to a DFS 
