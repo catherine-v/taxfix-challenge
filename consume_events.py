@@ -13,13 +13,13 @@ logging.basicConfig(level=logging.INFO)
 DEFAULT_SETTINGS = {
     "sqs_name": "SomeSQS",
     "sqs_polling_timeout": 20,
-    "s3_bucket": "SomeBucket",
+    "s3_bucket": "some-bucket",
     "polling_cycles": 5,
 }
 
 CLIENTS = {
-    "s3": boto3.client('s3'),
-    "sqs": boto3.resource('sqs'),
+    "s3": boto3.client("s3"),
+    "sqs": boto3.resource("sqs"),
 }
 
 
