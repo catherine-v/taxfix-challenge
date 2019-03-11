@@ -18,7 +18,7 @@ To simulate events flow I am using `generate_events.py` script which has simple 
 Amazon SQS is being used here as an events bus. The generation script assumes the queue already exists.
    
 
-## Events consumption
+## Events ingestion a.k.a. consumption
  
 Script which consumes messages and stores them on a DFS `consume_events.py` can be running 
 * non-stop on a hosted machine (self-hosted, EC2, ElasticBeanstalk, Google AppEngine etc.) -- in this case 
@@ -32,7 +32,7 @@ long polling.
 
 ## Tasks scheduling
 
-For a hosted solution the easiest way way to support tasks scheduling is cron as it is a natural part of nearly all *nix operation systems. 
+For a hosted solution the easiest way to support tasks scheduling is cron as it is a natural part of nearly all *nix operation systems. 
 There are plenty of alternatives including cloud solutions like Cloud Scheduler from Google, AWS Batch or CloudWatch.
 I am using cron here as it is easy to replicate in any other solution. 
 
@@ -42,7 +42,6 @@ I am using cron here as it is easy to replicate in any other solution.
 Disclaimer: I could not fully test this part of the task as I don't have access to a real Redshift cluster. 
 
 As Redshift is based on PostgreSQL and is compatible with it's connection drivers, I'm using psycopg2 here.
-`COPY` command is a recommended way to upload bulk data into Redshift.
 
 An assumed table structure can be found in `create_table.sql`. Columns marked as `NOT NULL` are either necessary to
 fulfill the task needs or a logical assumption. `VARCHAR` length are also an assumtion based on example data.
@@ -51,13 +50,13 @@ To keep scheduling flexible the script `upload_data.py` is fetching all availabl
 and removes from S3 so the next job will not upload the same data causing unnecessary duplication. In a real project
 it might be beneficial not to remove data from S3, but keep uploaded files in a separate bucket.
 
-The script is scheduled to run every 5 minutes.
+This script is scheduled to run every 5 minutes.
  
 
 ## Visualization
 
-Data visualization highly depends on requirements and tools & processes which are already in use by the company. 
-Tools like [Tableau](https://www.tableau.com/) are often become a choice of bigger companies, other tools like [D3](https://d3js.org/) allow in-house development of interactive graphics.
+Data visualization highly depends on requirements and tools/processes which are already in use by the company. 
+Tools like [Tableau](https://www.tableau.com/) often become a choice of bigger companies, other tools like [D3](https://d3js.org/) allow in-house development of interactive graphics.
 
 Since no specific information was given in the challenge for this part, I've decided to provide a simple visualization via matplotlib. 
 Each time `visualize.py` script runs it saves resulting graphs as files in the same directory for further reference. 
@@ -69,7 +68,7 @@ It is scheduled to run evenry 2 hours.
 It is possible to run all scripts locally for testing purposes using Docker. I am using a single Docker container which
 runs several processes, but this approach is not recommended and is definitely not a production solution.
 
-1. Edit `settings.ini` file to setup real credentials and other settings  
+1. Edit `settings.ini` file to set up real credentials and other settings  
 2. Build docker container with `docker build --rm -t taxfix/challenge .`
 3. Run `docker run -t -i taxfix/challenge`
   
